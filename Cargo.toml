@@ -1,0 +1,11 @@
+[package]
+name = "applets"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+relm4 = { version = "0.9.1", features = ["libadwaita", "macros"] }
+relm4-components = "0.9.1"
+adw = { version = "0.7.1", package = "libadwaita" }
+gtk = { version = "0.9.5", package = "gtk4" }
+strip-ansi-escapes = "0.2.1"
