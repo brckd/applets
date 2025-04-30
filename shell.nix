@@ -7,5 +7,6 @@ pkgs.mkShell {
     pkg-config
     gtk4
     libadwaita
+    librsvg
   ];
 }

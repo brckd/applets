@@ -1,17 +1,20 @@
-use relm4::{Component, ComponentParts, ComponentSender, Controller, RelmWidgetExt, SimpleComponent, ComponentController};
-use adw::prelude::*;
 use std::{str, io::{BufReader, BufRead}, os::unix::thread, process::{Command,Stdio}, time::Duration};
-use super::process::{ProcessModel, ProcessMsg};
+use relm4::{prelude::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque}, Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt, SimpleComponent};
+use relm4::actions::{AccelsPlus, ActionablePlus, RelmAction, RelmActionGroup};
+use adw::prelude::*;
+use gtk::prelude::*;
+use super::tab::*;
 
 pub struct AppModel {
-    command: gtk::EntryBuffer,
-    process: Controller<ProcessModel>
+    overview_open: bool,
+    tabs: FactoryVecDeque<TabModel>,
 }
 
 #[derive(Debug)]
 pub enum AppMsg {
-    Run,
+    OpenOverview,
     Nothing,
+    CreateTab,
 }
 
 #[derive(Debug)]
@@ -25,58 +28,75 @@ impl Component for AppModel {
     type CommandOutput = CommandMsg;
 
     view! {
+        #[root]
         adw::ApplicationWindow {
-            gtk::Box {
-                set_orientation: gtk::Orientation::Vertical,
-                set_spacing: 5,
+            set_title: Some("Applets"),
+            set_default_width: 600,
+            set_default_height: 300,
 
-                adw::HeaderBar {},
+            adw::TabOverview {
+                #[watch]
+                set_open: model.overview_open,
+                set_view: Some(&tab_view),
+                set_enable_search: true,
 
-                gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 5,
-                    set_margin_all: 5,
+                #[wrap(Some)]
+                set_child = &adw::ToolbarView {
+                    add_top_bar = &adw::HeaderBar {
+                        pack_start = &gtk::Button {
+                            set_icon_name: "tab-new",
+                            connect_clicked => AppMsg::CreateTab,
+                        },
 
-                    gtk::Entry {
-                        set_placeholder_text: Some("Enter a command"),
-                        set_buffer: &model.command,
-                        set_hexpand: true,
-                        connect_activate => AppMsg::Run,
+                        pack_end = &gtk::Button {
+                            set_icon_name: "view-grid-symbolic",
+                            connect_clicked => AppMsg::OpenOverview,
+                        },
                     },
 
-                    gtk::Button {
-                        set_label: "Run",
-                        connect_clicked => AppMsg::Run,
+                    add_top_bar = &adw::TabBar {
+                        set_view: Some(&tab_view),
                     },
-                }
-            }
-        }
+
+                    #[local_ref]
+                    tab_view -> adw::TabView {
+                        set_margin_all: 5,
+                        set_margin_top: 0,
+                    },
+                },
+            },
+        },
     }
 
-    // Initialize the component.
-     fn init(
+    fn init(
         init: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let process = ProcessModel::builder()
-            .transient_for(&root)
-            .launch(()).forward(sender.input_sender(), |()| AppMsg::Nothing);
-
-        let model = AppModel { command: gtk::EntryBuffer::default(), process };
+        let tabs = FactoryVecDeque::builder()
+            .launch(adw::TabView::default())
+            .forward(sender.input_sender(), |output| AppMsg::Nothing);
+        let model = AppModel { overview_open: false, tabs };
+        
+        let tab_view = model.tabs.widget();
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
 
-     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, 
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, 
         _: &Self::Root,) {
+        let mut tabs_guard = self.tabs.guard();
         match msg {
-            AppMsg::Run => {
-                let command = self.command.text().to_string();
-                self.process.emit(ProcessMsg::Show);
-                self.process.emit(ProcessMsg::Run(command));
+            AppMsg::OpenOverview => {
+                self.overview_open = true;
             }
-            AppMsg::Nothing => {}
+            AppMsg::CreateTab => {
+                self.overview_open = false;
+                tabs_guard.push_back(());
+            }
+            AppMsg::Nothing => {
+                self.overview_open = false;
+            }
         }
     }
 }

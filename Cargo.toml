@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-relm4 = { version = "0.9.1", features = ["libadwaita", "macros"] }
+relm4 = { version = "0.9.1", features = ["libadwaita", "macros", "gnome_45"] }
 relm4-components = "0.9.1"
-adw = { version = "0.7.1", package = "libadwaita" }
+adw = { version = "0.7.1", package = "libadwaita", features = ["v1_3", "v1_4"] }
 gtk = { version = "0.9.5", package = "gtk4" }
 strip-ansi-escapes = "0.2.1"
+relm4-icons = "0.10.0-beta.2"
+
+[build-dependencies]
+relm4-icons-build = "0.10.0-beta.2"
