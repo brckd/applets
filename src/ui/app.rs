@@ -1,7 +1,7 @@
 use std::{str, io::{BufReader, BufRead}, os::unix::thread, process::{Command,Stdio}, time::Duration};
 use relm4::{prelude::{DynamicIndex, FactoryComponent, FactorySender, FactoryVecDeque}, Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt, SimpleComponent};
 use relm4::actions::{AccelsPlus, ActionablePlus, RelmAction, RelmActionGroup};
-use adw::prelude::*;
+use adw::{prelude::*, TabPage};
 use gtk::prelude::*;
 use super::tab::*;
 
@@ -13,8 +13,7 @@ pub struct AppModel {
 #[derive(Debug)]
 pub enum AppMsg {
     OpenOverview,
-    Nothing,
-    CreateTab,
+    CreateTab(TabInit),
 }
 
 #[derive(Debug)]
@@ -45,7 +44,7 @@ impl Component for AppModel {
                     add_top_bar = &adw::HeaderBar {
                         pack_start = &gtk::Button {
                             set_icon_name: "tab-new",
-                            connect_clicked => AppMsg::CreateTab,
+                            connect_clicked => AppMsg::CreateTab(TabInit::Entry{}),
                         },
 
                         pack_end = &gtk::Button {
@@ -73,9 +72,14 @@ impl Component for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let tabs = FactoryVecDeque::builder()
+        let mut tabs = FactoryVecDeque::builder()
             .launch(adw::TabView::default())
-            .forward(sender.input_sender(), |output| AppMsg::Nothing);
+            .forward(sender.input_sender(), |output| {
+                match output {
+                    TabOutput::CreateTab(tab) => AppMsg::CreateTab(tab)
+                }
+            });
+        tabs.guard().push_back(TabInit::Entry{});
         let model = AppModel { overview_open: false, tabs };
         
         let tab_view = model.tabs.widget();
@@ -90,12 +94,9 @@ impl Component for AppModel {
             AppMsg::OpenOverview => {
                 self.overview_open = true;
             }
-            AppMsg::CreateTab => {
+            AppMsg::CreateTab(tab) => {
                 self.overview_open = false;
-                tabs_guard.push_back(());
-            }
-            AppMsg::Nothing => {
-                self.overview_open = false;
+                let index = tabs_guard.push_back(tab);
             }
         }
     }
